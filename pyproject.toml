@@ -1,0 +1,27 @@
+[project]
+name = "ghost-data-audit"
+version = "0.1.0"
+description = "Evidence-grounded deletion auditing for Ghost Data Still Exists"
+requires-python = "==3.14.*"
+dependencies = [
+  "openai-agents>=0.4",
+  "pydantic>=2.12,<3",
+  "pypdf>=6",
+  "pypdfium2>=5",
+  "pillow>=12",
+  "python-dotenv>=1.2,<2",
+]
+
+[dependency-groups]
+dev = ["pytest>=9", "ruff>=0.14"]
+
+[tool.pytest.ini_options]
+pythonpath = ["code"]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py314"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

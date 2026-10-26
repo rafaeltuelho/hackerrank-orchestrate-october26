@@ -1,0 +1,38 @@
+{
+  "cases": 32,
+  "expected_status_counts": {
+    "COMPLETE": 10,
+    "INCOMPLETE": 22
+  },
+  "expected_steps": 193,
+  "expected_phase_counts": {
+    "VERIFICATION": 111,
+    "FINDING": 41,
+    "REMEDIATION": 41
+  },
+  "expected_operation_counts": {
+    "VERIFY_RECORD_ABSENT": 50,
+    "VERIFY_RECORD_PRESENT": 24,
+    "VERIFY_RECORD_ANONYMIZED": 12,
+    "REPORT_REMAINING_RECORD": 21,
+    "DELETE_RECORD": 21,
+    "REPORT_RESTORE_RISK": 3,
+    "BLOCK_RESTORE": 3,
+    "VERIFY_RESTORE_BLOCKED": 6,
+    "REPORT_EXPOSED_PII": 11,
+    "REPORT_ACTIVE_DATA_FLOW": 6,
+    "DISABLE_DATA_FLOW": 6,
+    "REDACT_RECORD": 6,
+    "ANONYMIZE_RECORD": 5,
+    "VERIFY_RECORD_REDACTED": 10,
+    "VERIFY_DATA_FLOW_DISABLED": 9
+  },
+  "distinct_cited_files": 13,
+  "historical_request_cases": [
+    "case_10",
+    "case_29",
+    "case_30"
+  ],
+  "cases_with_history": 7,
+  "validation": "All 32 expected outputs have exact fields, consecutive numbering, canonical operation/system/resource order, valid evidence IDs and manifest capture time <= audit_at. This does not validate evidence sufficiency or prediction accuracy."
+}
