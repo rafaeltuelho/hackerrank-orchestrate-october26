@@ -306,3 +306,27 @@ counts of supported plans, unresolved placeholders and evidence-validated cases.
 A full model investigation of every case and stronger step/sequence accuracy remain
 future implementation/evaluation work. The general policy clarification draft is
 in `analysis/participant-clarification.md`; it has not been sent externally.
+
+## OpenAI console logs and SDK traces
+
+All future live model calls explicitly set Responses `store=True`, including
+request triage, batched triage, evidence audits, repair calls, visual extraction and
+tool continuations. Responses carry `workflow=ghost_data`, `case_id` and `stage`
+metadata to make them easier to identify in [OpenAI Logs](https://platform.openai.com/logs).
+Use the organization/project associated with `OPENAI_API_KEY` in the console.
+
+Hosted Agents SDK tracing is also enabled, with workflow names `ghost_data.<stage>`
+and case IDs as trace group IDs. Prompt/response and tool content capture is enabled
+for this fictional challenge dataset. The exporter authenticates with the same key
+as the model client; that key is not added to metadata or prompts. Buffered traces
+are flushed after each completed or failed SDK run. Inspect SDK workflow spans in
+[OpenAI Traces](https://platform.openai.com/traces).
+
+These settings apply to new live calls. Local cache hits and deterministic evidence
+processing make no API request, and prior calls made with storage/tracing disabled
+are not backfilled. Hosted visibility depends on successful ingestion and the
+project's account/data controls. Offline fake-model tests do not export traces.
+Existing measured reports describe their historical runs, whose tracing was disabled;
+no predictions or paid full-dataset runs were repeated for this configuration change.
+A one-call live smoke confirmed that the response was stored and retrievable, with
+`case_id=tracing_smoke` and `stage=tracing_smoke`. The console UI itself was not inspected.

@@ -61,3 +61,15 @@ Allocated overall OpenAI/gpt-6.1-sol calls: 543; unknown-usage calls: 4.
 Allocated known input/output/total tokens: 3811692/243956/4055648; mean total per candidate request: 7829.436.
 Allocated known-token uncached baseline estimate: USD 10.062944; per candidate request: USD 0.01942653.
 Inclusive committed budget allowance (including unknown reservations): USD 25.197249; per candidate request: USD 0.04864334.
+
+## Subsequent observability configuration
+
+After the measured candidate run, live Responses storage (`store=True`) and hosted
+Agents SDK tracing were enabled for every stage. New calls include case/stage metadata
+and capture prompt/response and tool content. The measurements above remain historical;
+this configuration change did not rerun predictions, change usage totals or backfill
+previous calls. Offline test traffic is not exported. One live smoke call used 249 input and 37 output tokens (286 total) and confirmed
+that the response was stored and retrievable with tracing_smoke case/stage metadata.
+SDK trace buffers were flushed; console UI visibility was not inspected. The smoke
+usage is recorded separately under runs/tracing-smoke and is not added retroactively
+to the historical candidate-run totals above.

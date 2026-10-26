@@ -43,7 +43,9 @@ def write_report(root: Path = ROOT) -> None:
         "## Measured development pilots",
         "",
         "Provider: OpenAI. Model: gpt-6.1-sol. Reasoning: triage low; audit and visual "
-        "interpretation medium. Standard Responses API; remote tracing disabled. "
+        "interpretation medium. Standard Responses API. Historical development calls used "
+        "disabled remote tracing; future live calls enable hosted SDK tracing and "
+        "Responses storage. "
         "SDK and HTTP automatic retries disabled. Any audit-repair calls are explicit "
         "and included below. Offline fake-model tests are excluded.",
         "",

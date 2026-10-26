@@ -139,7 +139,7 @@ async def prepare_visuals(
         model_settings=ModelSettings(
             reasoning=Reasoning(effort=VISION_REASONING_EFFORT),
             max_tokens=8000,
-            store=False,
+            store=True,
             retry=ModelRetrySettings(max_retries=0),
             extra_body={"service_tier": "default"},
         ),

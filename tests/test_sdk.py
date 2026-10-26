@@ -118,3 +118,65 @@ def test_audit_schema_roundtrip_and_duplicate_fields():
     fields.append(fields[0])
     with pytest.raises(ValueError, match="DUPLICATE_OBSERVATION_FIELD"):
         ProposedAssessment.model_validate(raw).to_domain()
+
+
+@pytest.mark.parametrize("stage", ["triage", "triage_batch", "audit", "audit_repair", "vision"])
+@pytest.mark.parametrize("failure", [False, True])
+def test_live_stages_enable_console_storage_and_sdk_tracing(tmp_path, monkeypatch, stage, failure):
+    from decimal import Decimal
+
+    import ghost_audit.agent as adapter
+    from agents import ModelSettings
+    from ghost_audit.budget import Budget
+
+    events = []
+    monkeypatch.setenv("OPENAI_API_KEY", "offline-placeholder")
+
+    async def close():
+        events.append("client_closed")
+
+    monkeypatch.setattr(adapter, "AsyncOpenAI", lambda **kwargs: SimpleNamespace(close=close))
+    monkeypatch.setattr(adapter, "set_tracing_disabled", lambda disabled: events.append(disabled))
+    monkeypatch.setattr(
+        adapter,
+        "set_tracing_export_api_key",
+        lambda key: events.append("export_key_set" if key == "offline-placeholder" else "bad_key"),
+    )
+    monkeypatch.setattr(adapter, "flush_traces", lambda: events.append("flushed"))
+    expected = fixtures()[0].authorization
+
+    async def mocked_run(agent, prompt, **kwargs):
+        assert agent.model_settings.store is True
+        assert agent.model_settings.metadata == {
+            "workflow": "ghost_data",
+            "case_id": "c",
+            "stage": stage,
+        }
+        config = kwargs["run_config"]
+        assert config.tracing_disabled is False
+        assert config.trace_include_sensitive_data is True
+        assert config.workflow_name == "ghost_data." + stage
+        assert config.group_id == "c"
+        assert config.trace_metadata == {"case_id": "c", "stage": stage}
+        if failure:
+            raise RuntimeError("controlled error")
+        return SimpleNamespace(final_output=expected)
+
+    monkeypatch.setattr(adapter.Runner, "run", mocked_run)
+    triage, _ = task_definitions("gpt-6.1-sol")
+    # Even a caller opting out locally cannot silently disable the requested logging.
+    triage = triage.clone(model_settings=ModelSettings(store=False))
+    call = run_task(
+        triage,
+        "offline fixture",
+        case_id="c",
+        stage=stage,
+        ledger=UsageLedger(),
+        budget=Budget(tmp_path / "budget.jsonl", Decimal(1)),
+    )
+    if failure:
+        with pytest.raises(RuntimeError, match="controlled error"):
+            asyncio.run(call)
+    else:
+        assert asyncio.run(call) == expected
+    assert events == [False, "export_key_set", "client_closed", "flushed"]

@@ -1,5 +1,8 @@
 """Offline-compatible task declarations for bounded sequential SDK runs."""
 
+import asyncio
+import logging
+import os
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -12,7 +15,10 @@ from agents import (
     RunConfig,
     RunContextWrapper,
     Runner,
+    flush_traces,
     function_tool,
+    set_tracing_disabled,
+    set_tracing_export_api_key,
 )
 from agents.models.openai_responses import OpenAIResponsesModel
 from openai import AsyncOpenAI
@@ -171,7 +177,7 @@ def task_definitions(model: str, tools: list | None = None) -> tuple[Agent, Agen
     if not model.strip():
         raise ValueError("OPENAI_MODEL is required for task setup")
     settings = ModelSettings(
-        store=False,
+        store=True,
         parallel_tool_calls=False,
         max_tokens=6000,
         timeout=90,
@@ -216,18 +222,30 @@ async def run_task(
 ):
     """Bounded SDK execution; returned audit assessments still require semantic validation.
 
-    No handoffs, sessions, remote tracing or application-level retries. Caller owns
+    No handoffs, sessions or application-level retries. Live calls enable hosted
+    traces and Responses storage; fake-model tests never export traces. Caller owns
     spending limits and API configuration; this adapter never chooses a model.
     """
     hooks = UsageHooks(ledger, str(agent.model), case_id, stage)
     client = None
-    if isinstance(agent.model, str):
+    live = isinstance(agent.model, str)
+    if live:
         if budget is None:
             raise ValueError("Live requests require a persistent shared budget")
         if agent.model != "gpt-6.1-sol":
             raise ValueError("Live pricing has only been verified for gpt-6.1-sol")
         client = AsyncOpenAI(max_retries=0, timeout=90, base_url="https://api.openai.com/v1")
-        agent = agent.clone(model=BudgetedModel(OpenAIResponsesModel(agent.model, client), budget))
+        set_tracing_disabled(False)
+        set_tracing_export_api_key(os.environ["OPENAI_API_KEY"])
+        agent = agent.clone(
+            model=BudgetedModel(OpenAIResponsesModel(agent.model, client), budget),
+            model_settings=agent.model_settings.resolve(
+                ModelSettings(
+                    store=True,
+                    metadata={"workflow": "ghost_data", "case_id": case_id, "stage": stage},
+                )
+            ),
+        )
     try:
         result = await Runner.run(
             agent,
@@ -236,7 +254,11 @@ async def run_task(
             max_turns=max_turns,
             hooks=hooks,
             run_config=RunConfig(
-                tracing_disabled=True,
+                tracing_disabled=not live,
+                trace_include_sensitive_data=True,
+                workflow_name=f"ghost_data.{stage}",
+                group_id=case_id,
+                trace_metadata={"case_id": case_id, "stage": stage},
                 model_provider=OpenAIProvider(use_responses=True, strict_feature_validation=True),
             ),
         )
@@ -245,3 +267,7 @@ async def run_task(
         hooks.record_failure()
         if client:
             await client.close()
+            try:
+                await asyncio.to_thread(flush_traces)
+            except Exception as exc:
+                logging.getLogger(__name__).warning("Trace export failed (%s)", type(exc).__name__)
